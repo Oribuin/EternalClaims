@@ -5,9 +5,10 @@ import dev.rosewood.rosegarden.config.CommentedFileConfiguration;
 import dev.rosewood.rosegarden.config.RoseSetting;
 import dev.rosewood.rosegarden.manager.AbstractConfigurationManager;
 import xyz.oribuin.eternalclaims.EternalClaims;
+import xyz.oribuin.eternalclaims.claim.type.PermissionType;
+import xyz.oribuin.eternalclaims.claim.type.SettingType;
 
 import java.util.List;
-import java.util.Map;
 
 public class ConfigurationManager extends AbstractConfigurationManager {
 
@@ -15,10 +16,28 @@ public class ConfigurationManager extends AbstractConfigurationManager {
 
         // Claim Settings
         CLAIMS("claims", null, "Global settings for all the claims."),
-        CLAIMS_SETTINGS_DEFAULT("claims.default-settings", List.of("MOB_SPAWNING"), "These are the default settings for claims when they are first created.", "Any settings not specified here will be set to false."),
+
+        CLAIMS_SETTINGS_DEFAULT("claims.default-settings", null,
+                "These are the default settings for claims when they are first created.",
+                "Any settings not specified here will be set to false."
+        ),
+
+        // Add all the default options, this is so cringe
+        CLAIMS_SETTINGS_DEFAULT_MOB_SPAWNING("claims.default-settings.MOB_SPAWNING", true),
+        CLAIMS_SETTINGS_DEFAULT_PVP("claims.default-settings.PVP", false),
+        CLAIMS_SETTINGS_DEFAULT_FIRE_SPREAD("claims.default-settings.FIRE_SPREAD", true),
+        CLAIMS_SETTINGS_DEFAULT_EXPLOSIONS("claims.default-settings.EXPLOSIONS", false),
+        CLAIMS_SETTINGS_DEFAULT_MOB_GRIEFING("claims.default-settings.MOB_GRIEFING", false),
+
         CLAIMS_LOCKED_SETTINGS("claims.locked-settings", List.of("PVP"), "Settings that cannot be changed by players."),
         CLAIMS_DISABLED_WORLDS("claims.disabled-worlds", List.of("world_nether", "world_the_end"), "Worlds where claims are disabled."),
 
+        // Member Settings
+        MEMBERS("members", null, "Global settings for all the members."),
+        MEMBER_SETTINGS_DEFAULT("members.default-settings", PermissionType.createDefault(),
+                "These are the default settings for members when they are first created.",
+                "Any settings not specified here will be set to false."
+        ),
         ;
 
         private final String key;

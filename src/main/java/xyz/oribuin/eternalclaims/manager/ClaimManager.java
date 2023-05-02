@@ -4,18 +4,17 @@ import com.google.gson.Gson;
 import dev.rosewood.rosegarden.RosePlugin;
 import dev.rosewood.rosegarden.manager.Manager;
 import org.bukkit.Chunk;
-import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import xyz.oribuin.eternalclaims.claim.Claim;
-import xyz.oribuin.eternalclaims.claim.permission.ClaimPermission;
-import xyz.oribuin.eternalclaims.claim.permission.PermissionHolder;
-import xyz.oribuin.eternalclaims.claim.permission.PermissionType;
+import xyz.oribuin.eternalclaims.claim.Member;
+import xyz.oribuin.eternalclaims.storage.ClaimNamespace;
 
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -29,13 +28,12 @@ public class ClaimManager extends Manager {
 
     @Override
     public void reload() {
-        this.rosePlugin.getManager(DataManager.class).loadDatabaseValues();
-
+        // Nothing to reload
     }
 
     @Override
     public void disable() {
-
+        // Nothing to disable
     }
 
     /**
@@ -45,17 +43,21 @@ public class ClaimManager extends Manager {
      * @param chunk    The chunk to claim
      * @param callback The callback to run after the claim is created
      */
-    public void createClaim(UUID owner, Chunk chunk, Consumer<Claim> callback) {
+    public void createClaims(@NotNull UUID owner, @NotNull List<Chunk> chunks, @NotNull Consumer<List<Claim>> callback) {
         final DataManager dataManager = this.rosePlugin.getManager(DataManager.class);
 
-        dataManager.createClaim(owner, chunk, claim -> {
+        dataManager.createClaims(owner, chunks, claims -> {
 
             // Modify the chunk to be claimed
-            PersistentDataContainer container = chunk.getPersistentDataContainer();
-            container.set(new NamespacedKey(this.rosePlugin, "id"), PersistentDataType.INTEGER, claim.getId());
-            container.set(new NamespacedKey(this.rosePlugin, "owner"), PersistentDataType.STRING, claim.getOwner().toString());
-            container.set(new NamespacedKey(this.rosePlugin, "permissions"), PersistentDataType.STRING, this.fromPermissionMap(claim.getPermissions()));
-            callback.accept(claim);
+            for (Claim claim : claims) {
+                Chunk chunk = claim.getChunk(false); // We shouldn't need to load the chunk as it should already be loaded
+                if (chunk == null)
+                    continue;
+
+                chunk.getPersistentDataContainer().set(ClaimNamespace.CLAIM_ID, PersistentDataType.INTEGER, claim.getId());
+            }
+            callback.accept(claims);
+
         });
     }
 
@@ -73,9 +75,7 @@ public class ClaimManager extends Manager {
 
         // Modify the chunk to be unclaimed
         PersistentDataContainer container = chunk.getPersistentDataContainer();
-        container.remove(new NamespacedKey(this.rosePlugin, "id"));
-        container.remove(new NamespacedKey(this.rosePlugin, "owner"));
-        container.remove(new NamespacedKey(this.rosePlugin, "permissions"));
+        container.remove(ClaimNamespace.CLAIM_ID);
     }
 
     /**
@@ -84,74 +84,117 @@ public class ClaimManager extends Manager {
      * @param chunk The chunk to get the claim from
      * @return The claim
      */
-    public Claim getClaim(Chunk chunk) {
+    @Nullable
+    public Claim getClaim(@NotNull Chunk chunk) {
         final PersistentDataContainer container = chunk.getPersistentDataContainer();
-
-        if (!container.has(new NamespacedKey(this.rosePlugin, "id"), PersistentDataType.INTEGER))
+        final int id = container.getOrDefault(ClaimNamespace.CLAIM_ID, PersistentDataType.INTEGER, -1);
+        if (id == -1)
             return null;
 
-        final Integer id = container.get(new NamespacedKey(this.rosePlugin, "id"), PersistentDataType.INTEGER);
-        final String owner = container.get(new NamespacedKey(this.rosePlugin, "owner"), PersistentDataType.STRING);
-        final Map<PermissionType, PermissionHolder> permissions = this.toPermissionMap(container.get(new NamespacedKey(this.rosePlugin, "permissions"), PersistentDataType.STRING));
-
-        if (id == null || owner == null || permissions == null)
-            return null;
-
-        Claim claim = new Claim(id, UUID.fromString(owner));
-        claim.setChunkX(chunk.getX());
-        claim.setChunkZ(chunk.getZ());
-        claim.setPermissions(permissions);
-        return claim;
+        return this.rosePlugin.getManager(DataManager.class).getClaims().get(id);
     }
 
     /**
-     * Get all claims from a player
+     * Check if a chunk is claimed
+     *
+     * @param chunk The chunk to check
+     * @return If the chunk is claimed
+     */
+    public boolean isClaimed(@NotNull Chunk chunk) {
+        return chunk.getPersistentDataContainer().has(ClaimNamespace.CLAIM_ID, PersistentDataType.INTEGER);
+    }
+
+    /**
+     * Get all claims from a world
+     *
+     * @param world The world to get the claims from
+     * @return A list of claims
+     */
+    @NotNull
+    public List<Claim> getClaims(@NotNull World world) {
+        List<Claim> result = new ArrayList<>();
+
+        for (Claim claim : this.rosePlugin.getManager(DataManager.class).getClaims().values()) {
+            if (claim.getWorld().equals(world))
+                result.add(claim);
+        }
+
+        return result;
+    }
+
+    /**
+     * Get a claim by its id
+     *
+     * @param id The id of the claim
+     * @return The claim
+     */
+    @Nullable
+    public Claim getClaimById(@NotNull Integer id) {
+        return this.rosePlugin.getManager(DataManager.class).getClaims().get(id);
+    }
+
+    /**
+     * Get a claim by the chunkX, ChunkZ and world of the claim
+     *
+     * @param chunkX The chunkX of the claim
+     * @param chunkZ The chunkZ of the claim
+     * @param world  The world of the claim
+     * @return The claim
+     */
+    @Nullable
+    public Claim getClaimByChunk(int chunkX, int chunkZ, @NotNull World world) {
+        List<Claim> claims = this.getClaims(world);
+
+        for (Claim claim : claims) {
+            if (claim.getChunkX() == chunkX && claim.getChunkZ() == chunkZ)
+                return claim;
+        }
+
+        return null;
+    }
+
+    /**
+     * Check whether a player has a claim in a world
+     *
+     * @param owner The owner
+     * @param world The world
+     * @return Whether the player has a claim in the world
+     */
+    public boolean hasClaim(@NotNull UUID owner, @Nullable World world) {
+        return this.getClaims(owner, world).size() > 0;
+    }
+
+    /**
+     * Get all claims from a player in a world
      *
      * @param owner The owner of the claims
+     * @param world The world to get the claims from
      * @return A list of claims
      */
-    public List<Claim> getClaims(UUID owner) {
-        return this.rosePlugin.getManager(DataManager.class).getClaims()
-                .row(owner)
-                .values()
-                .stream()
-                .toList();
+    @NotNull
+    public List<Claim> getClaims(@NotNull UUID owner, @Nullable World world) {
+        List<Claim> results = new ArrayList<>(
+                this.rosePlugin.getManager(DataManager.class).getClaims().values()
+                        .stream()
+                        .filter(claim -> claim.getOwner().equals(owner))
+                        .toList()
+        );
+
+        if (world != null)
+            results.removeIf(claim -> claim.getWorld() != world);
+
+        return results;
     }
 
     /**
-     * Get all claims
+     * Get a member by their uuid
      *
-     * @return A list of claims
+     * @param uuid The uuid of the member
+     * @return The member
      */
-    public List<Claim> getClaims() {
-        return this.rosePlugin.getManager(DataManager.class).getClaims()
-                .values()
-                .stream()
-                .toList();
+    public Member getMember(@NotNull UUID uuid) {
+        return this.rosePlugin.getManager(DataManager.class).getMembers().getOrDefault(uuid, new Member(uuid));
     }
 
-    /**
-     * Convert a string to a map of permissions
-     *
-     * @param data The string to convert
-     * @return A map of permissions
-     */
-    public Map<PermissionType, PermissionHolder> toPermissionMap(String data) {
-        if (data == null)
-            return new HashMap<>();
-
-        ClaimPermission claimPermission = this.gson.fromJson(data, ClaimPermission.class);
-        return new HashMap<>(claimPermission.permissions());
-    }
-
-    /**
-     * Convert a map of permissions to a string
-     *
-     * @param permissions The map of permissions to convert
-     * @return A string of permissions
-     */
-    public String fromPermissionMap(Map<PermissionType, PermissionHolder> permissions) {
-        return this.gson.toJson(new ClaimPermission(permissions));
-    }
 
 }

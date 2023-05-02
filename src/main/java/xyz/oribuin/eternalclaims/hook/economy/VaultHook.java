@@ -11,9 +11,6 @@ public class VaultHook implements EconomyPlugin {
     private final Economy economy;
 
     public VaultHook() {
-        if (!Bukkit.getPluginManager().isPluginEnabled("Vault"))
-            throw new IllegalStateException("Could not find the Vault plugin, Economy will not work.");
-
         this.economy = Bukkit.getServicesManager().getRegistration(Economy.class).getProvider();
     }
     @Override
