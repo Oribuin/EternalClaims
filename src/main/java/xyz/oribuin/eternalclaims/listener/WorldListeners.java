@@ -2,22 +2,29 @@ package xyz.oribuin.eternalclaims.listener;
 
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.server.MapInitializeEvent;
-import org.bukkit.map.MapView;
+import org.bukkit.event.world.ChunkLoadEvent;
 import xyz.oribuin.eternalclaims.EternalClaims;
+import xyz.oribuin.eternalclaims.claim.Claim;
 import xyz.oribuin.eternalclaims.manager.ClaimManager;
-import xyz.oribuin.eternalclaims.manager.DataManager;
 
 public class WorldListeners implements Listener {
 
     private final EternalClaims plugin;
-    private final ClaimManager claimManager;
-    private final DataManager dataManager;
+    private final ClaimManager manager;
 
     public WorldListeners(EternalClaims plugin) {
         this.plugin = plugin;
-        this.claimManager = this.plugin.getManager(ClaimManager.class);
-        this.dataManager = this.plugin.getManager(DataManager.class);
+        this.manager = this.plugin.getManager(ClaimManager.class);
+    }
+
+    @EventHandler
+    public void onChunkLoad(ChunkLoadEvent event) {
+        Claim claim = this.manager.getClaim(event.getChunk());
+
+        if (claim != null) {
+            this.manager.getCachedClaims().put(claim.getId(), claim);
+        }
+
     }
 
 }

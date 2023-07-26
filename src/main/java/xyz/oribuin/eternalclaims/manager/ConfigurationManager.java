@@ -5,12 +5,28 @@ import dev.rosewood.rosegarden.config.CommentedFileConfiguration;
 import dev.rosewood.rosegarden.config.RoseSetting;
 import dev.rosewood.rosegarden.manager.AbstractConfigurationManager;
 import xyz.oribuin.eternalclaims.EternalClaims;
-import xyz.oribuin.eternalclaims.claim.type.PermissionType;
-import xyz.oribuin.eternalclaims.claim.type.SettingType;
+import xyz.oribuin.eternalclaims.claim.ClaimSetting;
 
 import java.util.List;
+import java.util.Map;
 
 public class ConfigurationManager extends AbstractConfigurationManager {
+
+    public ConfigurationManager(RosePlugin rosePlugin) {
+        super(rosePlugin, Setting.class);
+    }
+
+    @Override
+    protected String[] getHeader() {
+        return new String[]{
+                "___________ __                             .__  _________ .__         .__                ",
+                "\\_   _____//  |_  ___________  ____ _____  |  | \\_   ___ \\|  | _____  |__| _____   ______",
+                " |    __)_\\   __\\/ __ \\_  __ \\/    \\\\__  \\ |  | /    \\  \\/|  | \\__  \\ |  |/     \\ /  ___/",
+                " |        \\|  | \\  ___/|  | \\/   |  \\/ __ \\|  |_\\     \\___|  |__/ __ \\|  |  Y Y  \\\\___ \\",
+                "/_______  /|__|  \\___  >__|  |___|  (____  /____/\\______  /____(____  /__|__|_|  /____  >",
+                "        \\/           \\/           \\/     \\/             \\/          \\/         \\/     \\/ "
+        };
+    }
 
     public enum Setting implements RoseSetting {
 
@@ -22,22 +38,16 @@ public class ConfigurationManager extends AbstractConfigurationManager {
                 "Any settings not specified here will be set to false."
         ),
 
-        // Add all the default options, this is so cringe
-        CLAIMS_SETTINGS_DEFAULT_MOB_SPAWNING("claims.default-settings.MOB_SPAWNING", true),
-        CLAIMS_SETTINGS_DEFAULT_PVP("claims.default-settings.PVP", false),
-        CLAIMS_SETTINGS_DEFAULT_FIRE_SPREAD("claims.default-settings.FIRE_SPREAD", true),
-        CLAIMS_SETTINGS_DEFAULT_EXPLOSIONS("claims.default-settings.EXPLOSIONS", false),
-        CLAIMS_SETTINGS_DEFAULT_MOB_GRIEFING("claims.default-settings.MOB_GRIEFING", false),
+        // All Default Claim Settings
+        CLAIM_SETTINGS_DEFAULT(
+                "claims.default-settings",
+                ClaimSetting.createDefault(),
+                "These are the default settings for claims when they are first created.", "Any settings not specified here will be set to false."
+        ),
 
         CLAIMS_LOCKED_SETTINGS("claims.locked-settings", List.of("PVP"), "Settings that cannot be changed by players."),
         CLAIMS_DISABLED_WORLDS("claims.disabled-worlds", List.of("world_nether", "world_the_end"), "Worlds where claims are disabled."),
 
-        // Member Settings
-        MEMBERS("members", null, "Global settings for all the members."),
-        MEMBER_SETTINGS_DEFAULT("members.default-settings", PermissionType.createDefault(),
-                "These are the default settings for members when they are first created.",
-                "Any settings not specified here will be set to false."
-        ),
         ;
 
         private final String key;
@@ -76,27 +86,17 @@ public class ConfigurationManager extends AbstractConfigurationManager {
             this.value = value;
         }
 
+        @SuppressWarnings("unchecked")
+        public Map<String, Boolean> getMap() {
+            this.loadValue();
+
+            return (Map<String, Boolean>) this.getCachedValue();
+        }
+
         @Override
         public CommentedFileConfiguration getBaseConfig() {
             return EternalClaims.getInstance().getManager(ConfigurationManager.class).getConfig();
         }
-    }
-
-    public ConfigurationManager(RosePlugin rosePlugin) {
-        super(rosePlugin, Setting.class);
-    }
-
-    @Override
-    protected String[] getHeader() {
-        return new String[]{
-                "\n" +
-                        "__________                    ___________                                         ",
-                "\\______   \\ ____  ______ ____ \\_   _____/ ____  ____   ____   ____   _____ ___.__.",
-                " |       _//  _ \\/  ___// __ \\ |    __)__/ ___\\/  _ \\ /    \\ /  _ \\ /     <   |  |",
-                " |    |   (  <_> )___ \\\\  ___/ |        \\  \\__(  <_> )   |  (  <_> )  Y Y  \\___  |",
-                " |____|_  /\\____/____  >\\___  >_______  /\\___  >____/|___|  /\\____/|__|_|  / ____|",
-                "        \\/           \\/     \\/        \\/     \\/           \\/             \\/\\/     "
-        };
     }
 
 }

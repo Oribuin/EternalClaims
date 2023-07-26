@@ -13,6 +13,7 @@ public class VaultHook implements EconomyPlugin {
     public VaultHook() {
         this.economy = Bukkit.getServicesManager().getRegistration(Economy.class).getProvider();
     }
+
     @Override
     public double getBalance(@NotNull UUID player) {
         return this.economy.getBalance(Bukkit.getOfflinePlayer(player));

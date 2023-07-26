@@ -2,7 +2,6 @@ package xyz.oribuin.eternalclaims.hook.economy;
 
 import org.black_ixx.playerpoints.PlayerPoints;
 import org.black_ixx.playerpoints.PlayerPointsAPI;
-import org.bukkit.Bukkit;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;

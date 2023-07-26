@@ -5,10 +5,12 @@ import dev.rosewood.rosegarden.command.framework.CommandContext;
 import dev.rosewood.rosegarden.command.framework.RoseCommand;
 import dev.rosewood.rosegarden.command.framework.RoseCommandWrapper;
 import dev.rosewood.rosegarden.command.framework.annotation.RoseExecutable;
+import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
+import xyz.oribuin.eternalclaims.claim.Claim;
 import xyz.oribuin.eternalclaims.manager.ClaimManager;
 
-import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 public class CreateCommand extends RoseCommand {
 
@@ -21,11 +23,9 @@ public class CreateCommand extends RoseCommand {
         final ClaimManager claimManager = this.rosePlugin.getManager(ClaimManager.class);
         final Player player = (Player) context.getSender();
 
-        claimManager.createClaims(
-                player.getUniqueId(),
-                List.of(player.getLocation().getChunk()),
-                claims -> player.sendMessage("Created claims x" + claims.size())
-        );
+        // TODO: Check if player is in a claim
+        Claim claim = new Claim(player.getUniqueId(), player.getLocation().getChunk());
+        CompletableFuture.runAsync(claim::create).thenRun(() -> player.sendMessage(Component.text("Created claim")));
     }
 
     @Override

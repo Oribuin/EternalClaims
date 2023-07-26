@@ -1,11 +1,14 @@
 package xyz.oribuin.eternalclaims;
 
 import dev.rosewood.rosegarden.RosePlugin;
-import dev.rosewood.rosegarden.manager.*;
+import dev.rosewood.rosegarden.manager.Manager;
 import org.bukkit.plugin.PluginManager;
 import xyz.oribuin.eternalclaims.hook.PAPI;
 import xyz.oribuin.eternalclaims.listener.WorldListeners;
-import xyz.oribuin.eternalclaims.manager.*;
+import xyz.oribuin.eternalclaims.manager.ClaimManager;
+import xyz.oribuin.eternalclaims.manager.CommandManager;
+import xyz.oribuin.eternalclaims.manager.ConfigurationManager;
+import xyz.oribuin.eternalclaims.manager.LocaleManager;
 
 import java.util.List;
 
@@ -14,9 +17,13 @@ public class EternalClaims extends RosePlugin {
     private static EternalClaims instance;
 
     public EternalClaims() {
-        super(-1, -1, ConfigurationManager.class, DataManager.class, LocaleManager.class, CommandManager.class);
+        super(-1, -1, ConfigurationManager.class, null, LocaleManager.class, CommandManager.class);
 
         instance = this;
+    }
+
+    public static EternalClaims getInstance() {
+        return instance;
     }
 
     @Override
@@ -41,10 +48,6 @@ public class EternalClaims extends RosePlugin {
     @Override
     protected List<Class<? extends Manager>> getManagerLoadPriority() {
         return List.of(ClaimManager.class);
-    }
-
-    public static EternalClaims getInstance() {
-        return instance;
     }
 
 }

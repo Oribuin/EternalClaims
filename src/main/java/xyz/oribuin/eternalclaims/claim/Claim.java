@@ -1,49 +1,141 @@
 package xyz.oribuin.eternalclaims.claim;
 
-import dev.rosewood.rosegarden.config.CommentedConfigurationSection;
+import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import xyz.oribuin.eternalclaims.EternalClaims;
-import xyz.oribuin.eternalclaims.claim.type.PermissionType;
-import xyz.oribuin.eternalclaims.claim.type.SettingType;
 import xyz.oribuin.eternalclaims.manager.ClaimManager;
-import xyz.oribuin.eternalclaims.manager.ConfigurationManager.Setting;
-import xyz.oribuin.eternalclaims.util.PluginUtils;
+import xyz.oribuin.eternalclaims.storage.ClaimDataKeys;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+@SuppressWarnings("unused")
 public class Claim {
 
-    private final int id; // The ID of the claim
+    private final UUID id; // The ID of the claim
     private final UUID owner; // The UUID of the owner
-    private @Nullable Member cachedOwner; // The cached owner
+    private String worldName; // The name of the world
     private int chunkX; // The X coordinate of the chunk
     private int chunkZ; // The Z coordinate of the chunk
-    private Chunk chunk; // The chunk the claim is in
-    private @NotNull World world; // The world the claim is in
-    private @NotNull Map<SettingType, Boolean> settings; // The settings of the claim
+    private Map<ClaimSetting, Boolean> settings; // The settings of the claim
+    private List<UUID> trusted; // The trusted players of the claim
 
-    public Claim(int id, UUID owner, int chunkX, int chunkZ, @NotNull World world) {
-        this.id = id;
+    public Claim(UUID owner, int chunkX, int chunkZ, @NotNull World world) {
+        this.id = UUID.randomUUID();
         this.owner = owner;
-        this.cachedOwner = null;
         this.chunkX = chunkX;
         this.chunkZ = chunkZ;
-        this.world = world;
+        this.worldName = world.getName();
         this.settings = new HashMap<>();
+        this.trusted = new ArrayList<>();
     }
 
-    public Claim(@NotNull Integer id, @NotNull UUID owner, @NotNull Chunk chunk) {
-        this(id, owner, chunk.getX(), chunk.getZ(), chunk.getWorld());
+    public Claim(@NotNull UUID owner, @NotNull Chunk chunk) {
+        this(owner, chunk.getX(), chunk.getZ(), chunk.getWorld());
     }
 
-    // TODO: canUse(Player player, PermissionType type)
-    // TODO: canEnter(Player uuid)
+    /**
+     * Create the claim and save it to the chunk
+     *
+     * @return Whether the claim was created
+     */
+    public boolean create() {
+        Chunk chunk = this.getChunk();
+        if (chunk == null) return false; // Could not create the chunk.
+
+        PersistentDataContainer container = chunk.getPersistentDataContainer();
+
+        // The chunk already has a claim.
+        if (container.has(ClaimDataKeys.CLAIM_ID, PersistentDataType.STRING)) {
+            return false;
+        }
+
+        // Set the claim id when the chunk is created.
+        container.set(ClaimDataKeys.CLAIM_ID, PersistentDataType.STRING, this.id.toString());
+
+        return this.save(chunk);
+    }
+
+
+    /**
+     * Save the claim to the chunk
+     *
+     * @return Whether the claim was saved
+     */
+    public boolean save() {
+        return this.save(this.getChunk());
+    }
+
+    /**
+     * Save the claim to the chunk
+     *
+     * @param chunk The chunk to save the claim to
+     * @return Whether the claim was saved
+     */
+    public boolean save(Chunk chunk) {
+
+        // Don't save the claim if the chunk is not provided
+        if (chunk == null) return false;
+
+        PersistentDataContainer container = chunk.getPersistentDataContainer();
+        container.set(ClaimDataKeys.CLAIM_OWNER, PersistentDataType.STRING, this.owner.toString());
+        container.set(ClaimDataKeys.SETTINGS, PersistentDataType.STRING, ClaimManager.GSON.toJson(this.settings));
+        container.set(ClaimDataKeys.TRUSTED, PersistentDataType.STRING, ClaimManager.GSON.toJson(this.trusted));
+
+        // Save the chunk in the cache
+        EternalClaims.getInstance()
+                .getManager(ClaimManager.class)
+                .getCachedClaims()
+                .put(this.id, this);
+
+        return true;
+    }
+
+    /**
+     * Delete the claim from the chunk
+     */
+    public void delete() {
+        Chunk chunk = this.getChunk();
+        if (chunk == null) return; // Could not create the chunk.
+
+        PersistentDataContainer container = chunk.getPersistentDataContainer();
+
+        // The chunk already has a claim.
+        if (!container.has(ClaimDataKeys.CLAIM_ID, PersistentDataType.STRING)) {
+            return;
+        }
+
+        container.remove(ClaimDataKeys.CLAIM_ID);
+        container.remove(ClaimDataKeys.CLAIM_OWNER);
+        container.remove(ClaimDataKeys.SETTINGS);
+        container.remove(ClaimDataKeys.TRUSTED);
+
+        // Remove the claim from the cache
+        EternalClaims.getInstance()
+                .getManager(ClaimManager.class)
+                .getCachedClaims()
+                .remove(this.id);
+    }
+
+    /**
+     * Check if a player is trusted in the claim
+     *
+     * @param player The player to check
+     * @return Whether the player is trusted
+     */
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted") // Shut up intellij
+    public boolean isTrusted(@NotNull Player player) {
+        return this.owner.equals(player.getUniqueId()) || this.trusted.contains(player.getUniqueId());
+    }
 
     /**
      * Check if a setting is enabled for the claim
@@ -51,80 +143,25 @@ public class Claim {
      * @param type The setting type to check
      * @return Whether the setting is enabled
      */
-    public boolean checkSetting(@NotNull SettingType type) {
-        return this.settings.get(type) != null && this.settings.get(type);
+    public boolean checkSetting(@NotNull ClaimSetting type) {
+        return this.settings.getOrDefault(type, type.isDefaultValue());
     }
 
     /**
-     * Check whether a player can use a permission type
+     * Get the chunk the claim is in (This will return null if the chunk is not loaded)
      *
-     * @param player The player to check
-     * @param type   The permission type to check
-     * @return Whether the player can use the permission type
-     */
-    public boolean checkPermission(@NotNull Player player, @NotNull PermissionType type) {
-
-        // Check if the player is the owner
-        if (this.getOwner().equals(player.getUniqueId()))
-            return true;
-
-        // TODO: Add option to check if the player is bypassing the claim
-
-        // Get the cached member
-        Member member = this.cachedOwner != null
-                ? this.cachedOwner
-                : EternalClaims.getInstance().getManager(ClaimManager.class).getMember(this.getOwner());
-
-        // Check if the member is null or the player is not trusted
-        if (member == null || !member.getTrustedUsers().contains(player.getUniqueId()))
-            return false;
-
-        // Check if the member has the permission
-        return member.getPermissions().get(type) != null && member.getPermissions().get(type);
-    }
-
-    /**
-     * Get the default settings for a claim protection
-     *
-     * @return The default settings
-     */
-    public static Map<SettingType, Boolean> getDefaultSettings() {
-        Map<SettingType, Boolean> settings = new HashMap<>();
-
-        // Load the default settings
-        CommentedConfigurationSection section = Setting.CLAIMS_SETTINGS_DEFAULT.getSection();
-        if (section == null)
-            return settings;
-
-        for (String key : section.getKeys(false)) {
-            SettingType type = PluginUtils.getEnum(SettingType.class, key);
-
-            if (type != null)
-                settings.put(type, section.getBoolean(key));
-        }
-
-        return settings;
-    }
-
-    /**
-     * Get the chunk the claim is in  (This will return null if the chunk is not loaded)
-     *
-     * @param force Whether to force get the chunk
      * @return The chunk the claim is in
      */
     @Nullable
-    public Chunk getChunk(boolean force) {
-        if (force || this.chunk == null)
-            this.chunk = this.world.getChunkAt(this.chunkX, this.chunkZ);
+    public Chunk getChunk() {
+        World world = Bukkit.getWorld(this.worldName);
+        if (world == null)
+            return null;
 
-        return this.chunk;
+        return world.getChunkAt(this.chunkX, this.chunkZ);
     }
 
-    public void setChunk(final Chunk chunk) {
-        this.chunk = chunk;
-    }
-
-    public int getId() {
+    public UUID getId() {
         return id;
     }
 
@@ -132,12 +169,12 @@ public class Claim {
         return owner;
     }
 
-    public @Nullable Member getCachedOwner() {
-        return cachedOwner;
+    public String getWorldName() {
+        return worldName;
     }
 
-    public void setCachedOwner(final @Nullable Member cachedOwner) {
-        this.cachedOwner = cachedOwner;
+    public void setWorldName(String worldName) {
+        this.worldName = worldName;
     }
 
     public int getChunkX() {
@@ -156,21 +193,22 @@ public class Claim {
         this.chunkZ = chunkZ;
     }
 
-    public @NotNull World getWorld() {
-        return world;
-    }
-
-    public void setWorld(@NotNull World world) {
-        this.world = world;
-    }
-
-    public @NotNull Map<SettingType, Boolean> getSettings() {
+    public Map<ClaimSetting, Boolean> getSettings() {
         return settings;
     }
 
-    public void setSettings(@NotNull Map<SettingType, Boolean> settings) {
+    public void setSettings(Map<ClaimSetting, Boolean> settings) {
         this.settings = settings;
     }
 
+    public List<UUID> getTrusted() {
+        return trusted;
+    }
+
+    public void setTrusted(List<UUID> trusted) {
+        this.trusted = trusted;
+    }
 
 }
+
+

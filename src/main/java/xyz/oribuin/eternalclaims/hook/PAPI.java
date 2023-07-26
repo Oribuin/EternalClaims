@@ -22,6 +22,7 @@ public class PAPI extends PlaceholderExpansion {
         return "Oribuin";
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public @NotNull String getVersion() {
         return this.plugin.getDescription().getVersion();
@@ -29,7 +30,7 @@ public class PAPI extends PlaceholderExpansion {
 
     @Override
     public boolean persist() {
-        return true;
+        return false;
     }
 
 
