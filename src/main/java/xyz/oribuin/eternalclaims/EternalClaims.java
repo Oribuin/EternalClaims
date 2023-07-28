@@ -4,7 +4,7 @@ import dev.rosewood.rosegarden.RosePlugin;
 import dev.rosewood.rosegarden.manager.Manager;
 import org.bukkit.plugin.PluginManager;
 import xyz.oribuin.eternalclaims.hook.PAPI;
-import xyz.oribuin.eternalclaims.listener.WorldListeners;
+import xyz.oribuin.eternalclaims.listener.ClaimListeners;
 import xyz.oribuin.eternalclaims.manager.ClaimManager;
 import xyz.oribuin.eternalclaims.manager.CommandManager;
 import xyz.oribuin.eternalclaims.manager.ConfigurationManager;
@@ -36,7 +36,7 @@ public class EternalClaims extends RosePlugin {
 
         // Register Listeners
         PluginManager pluginManager = this.getServer().getPluginManager();
-        pluginManager.registerEvents(new WorldListeners(this), this);
+        pluginManager.registerEvents(new ClaimListeners(this), this);
 
     }
 
