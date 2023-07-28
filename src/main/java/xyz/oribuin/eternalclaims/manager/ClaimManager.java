@@ -13,7 +13,9 @@ import org.jetbrains.annotations.Nullable;
 import xyz.oribuin.eternalclaims.claim.Claim;
 import xyz.oribuin.eternalclaims.storage.ClaimDataKeys;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -50,18 +52,15 @@ public class ClaimManager extends Manager {
     public Claim getClaim(@NotNull Chunk chunk) {
 
         // Check if the chunk is claimed
-        PersistentDataContainer container = chunk.getPersistentDataContainer();
-        if (!container.has(ClaimDataKeys.CLAIM_ID, PersistentDataType.STRING))
-            return null;
-
-        String claimId = container.get(ClaimDataKeys.CLAIM_ID, PersistentDataType.STRING);
+        String claimId = chunk.getPersistentDataContainer().get(ClaimDataKeys.CLAIM_ID, PersistentDataType.STRING);
+        if (claimId == null) return null;
 
         // Get the claim from the cache
-        if (claimId != null && this.cachedClaims.containsKey(UUID.fromString(claimId))) {
+        if (this.cachedClaims.containsKey(UUID.fromString(claimId))) {
             return this.cachedClaims.get(UUID.fromString(claimId));
         }
 
-        return null;
+        return new Claim(UUID.fromString(claimId), chunk);
     }
 
     /**
@@ -84,6 +83,31 @@ public class ClaimManager extends Manager {
     @Nullable
     public Claim getClaim(@NotNull Location location) {
         return this.getClaim(location.getChunk());
+    }
+
+    /**
+     * Get all claims from a player
+     *
+     * @param uuid The UUID of the player
+     * @return The claims
+     */
+    @NotNull
+    public List<Claim> getClaims(@NotNull UUID uuid) {
+        return new ArrayList<>(
+                this.cachedClaims.values().stream()
+                        .filter(claim -> claim.getOwner().equals(uuid))
+                        .toList()
+        );
+    }
+
+    /**
+     * Create a claim
+     *
+     * @param claim The claim to create
+     * @return If the claim was created
+     */
+    public boolean create(@NotNull Claim claim) {
+        return claim.create() && this.cachedClaims.put(claim.getId(), claim) != null;
     }
 
     /**

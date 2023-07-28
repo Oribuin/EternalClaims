@@ -47,7 +47,17 @@ public class ConfigurationManager extends AbstractConfigurationManager {
 
         CLAIMS_LOCKED_SETTINGS("claims.locked-settings", List.of("PVP"), "Settings that cannot be changed by players."),
         CLAIMS_DISABLED_WORLDS("claims.disabled-worlds", List.of("world_nether", "world_the_end"), "Worlds where claims are disabled."),
-
+        CLAIMS_IGNORED_SPAWN_REASONS("claims.ignored-spawn-reasons",
+                List.of(
+                        "BEEHIVE",
+                        "BUILD_IRONGOLEM",
+                        "BUILD_SNOWMAN",
+                        "VILLAGE_DEFENSE",
+                        "BREEDING",
+                        "EGG",
+                        "SPAWNER"
+                ),
+                "If an entity is spawned in this chunk under this reason, it will not be removed."),
         ;
 
         private final String key;

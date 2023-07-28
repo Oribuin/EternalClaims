@@ -12,9 +12,9 @@ import xyz.oribuin.eternalclaims.manager.ClaimManager;
 
 import java.util.concurrent.CompletableFuture;
 
-public class CreateCommand extends RoseCommand {
+public class DeleteCommand extends RoseCommand {
 
-    public CreateCommand(RosePlugin rosePlugin, RoseCommandWrapper parent) {
+    public DeleteCommand(RosePlugin rosePlugin, RoseCommandWrapper parent) {
         super(rosePlugin, parent);
     }
 
@@ -22,33 +22,37 @@ public class CreateCommand extends RoseCommand {
     public void execute(CommandContext context) {
         final ClaimManager manager = this.rosePlugin.getManager(ClaimManager.class);
         final Player player = (Player) context.getSender();
+        final Claim claim = manager.getClaim(player.getLocation().getChunk());
 
-        if (manager.isClaimed(player.getLocation().getChunk())) {
-            player.sendMessage(Component.text("This chunk is already claimed"));
+        if (claim == null) {
+            player.sendMessage(Component.text("This chunk is not claimed"));
             return;
         }
 
-        Claim claim = new Claim(player.getUniqueId(), player.getLocation().getChunk());
-        CompletableFuture.runAsync(() -> manager.create(claim))
+        if (!claim.getOwner().equals(player.getUniqueId()) && !manager.isBypassing(player.getUniqueId())) {
+            player.sendMessage(Component.text("You do not own this claim"));
+            return;
+        }
+
+        CompletableFuture.runAsync(() -> manager.delete(claim))
                 .thenRun(() ->
-                        player.sendMessage(Component.text("Created claim"))
+                        player.sendMessage(Component.text("Deleted claim"))
                 );
     }
 
-
     @Override
-    protected String getDefaultName() {
-        return "create";
+    public String getDefaultName() {
+        return "delete";
     }
 
     @Override
     public String getDescriptionKey() {
-        return "command-create-description";
+        return "command-delete-description";
     }
 
     @Override
     public String getRequiredPermission() {
-        return "eternalclaims.create";
+        return "eternalclaims.delete";
     }
 
     @Override

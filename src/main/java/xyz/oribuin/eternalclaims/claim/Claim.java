@@ -11,6 +11,8 @@ import org.jetbrains.annotations.Nullable;
 import xyz.oribuin.eternalclaims.EternalClaims;
 import xyz.oribuin.eternalclaims.manager.ClaimManager;
 import xyz.oribuin.eternalclaims.storage.ClaimDataKeys;
+import xyz.oribuin.eternalclaims.storage.ClaimSettingHolder;
+import xyz.oribuin.eternalclaims.storage.ClaimTrustedHolder;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,8 +23,8 @@ import java.util.UUID;
 @SuppressWarnings("unused")
 public class Claim {
 
-    private final UUID id; // The ID of the claim
-    private final UUID owner; // The UUID of the owner
+    private UUID id; // The ID of the claim
+    private UUID owner; // The UUID of the owner
     private String worldName; // The name of the world
     private int chunkX; // The X coordinate of the chunk
     private int chunkZ; // The Z coordinate of the chunk
@@ -41,6 +43,8 @@ public class Claim {
 
     public Claim(@NotNull UUID owner, @NotNull Chunk chunk) {
         this(owner, chunk.getX(), chunk.getZ(), chunk.getWorld());
+
+        this.load(); // Load the claim from the chunk
     }
 
     /**
@@ -63,6 +67,43 @@ public class Claim {
         container.set(ClaimDataKeys.CLAIM_ID, PersistentDataType.STRING, this.id.toString());
 
         return this.save(chunk);
+    }
+
+    public void load() {
+        Chunk chunk = this.getChunk();
+        if (chunk == null) return; // Could not create the chunk.
+
+        PersistentDataContainer container = chunk.getPersistentDataContainer();
+
+        // The chunk already has a claim.
+        if (!container.has(ClaimDataKeys.CLAIM_ID, PersistentDataType.STRING)) return;
+
+        String claimId = container.get(ClaimDataKeys.CLAIM_ID, PersistentDataType.STRING);
+        String claimOwner = container.get(ClaimDataKeys.CLAIM_OWNER, PersistentDataType.STRING);
+        String claimSettings = container.get(ClaimDataKeys.SETTINGS, PersistentDataType.STRING);
+        String claimTrusted = container.get(ClaimDataKeys.TRUSTED, PersistentDataType.STRING);
+
+        if (claimId == null || claimOwner == null)
+            return;
+
+        this.id = UUID.fromString(claimId);
+        this.owner = UUID.fromString(claimOwner);
+        this.worldName = chunk.getWorld().getName();
+        this.chunkX = chunk.getX();
+        this.chunkZ = chunk.getZ();
+
+        // Load the settings and trusted players
+        if (claimSettings != null) {
+            this.settings = ClaimManager.GSON.fromJson(claimSettings, ClaimSettingHolder.class).settings();
+        }
+
+        // Load the trusted players
+        if (claimTrusted != null) {
+            this.trusted = ClaimManager.GSON.fromJson(claimTrusted, ClaimTrustedHolder.class).trusted();
+        }
+
+        this.save(chunk);
+
     }
 
 
@@ -134,7 +175,30 @@ public class Claim {
      */
     @SuppressWarnings("BooleanMethodIsAlwaysInverted") // Shut up intellij
     public boolean isTrusted(@NotNull Player player) {
-        return this.owner.equals(player.getUniqueId()) || this.trusted.contains(player.getUniqueId());
+        if (this.owner.equals(player.getUniqueId()))
+            return true;
+
+        return this.trusted.contains(player.getUniqueId());
+    }
+
+    /**
+     * Trust a player in the claim
+     *
+     * @param player The player to trust
+     * @return Whether the player was trusted
+     */
+    public boolean trust(@NotNull Player player) {
+        return this.trusted.add(player.getUniqueId());
+    }
+
+    /**
+     * Untrust a player in the claim
+     *
+     * @param player The player to untrust
+     * @return Whether the player was untrusted
+     */
+    public boolean untrust(@NotNull Player player) {
+        return this.trusted.remove(player.getUniqueId());
     }
 
     /**
@@ -167,6 +231,10 @@ public class Claim {
 
     public UUID getOwner() {
         return owner;
+    }
+
+    public void setOwner(UUID owner) {
+        this.owner = owner;
     }
 
     public String getWorldName() {

@@ -13,11 +13,11 @@ import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.BlockIgniteEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.block.SignChangeEvent;
+import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
-import org.bukkit.event.entity.EntitySpawnEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
@@ -25,11 +25,13 @@ import xyz.oribuin.eternalclaims.EternalClaims;
 import xyz.oribuin.eternalclaims.claim.Claim;
 import xyz.oribuin.eternalclaims.claim.ClaimSetting;
 import xyz.oribuin.eternalclaims.manager.ClaimManager;
+import xyz.oribuin.eternalclaims.manager.ConfigurationManager.Setting;
 
 public class ClaimListeners implements Listener {
 
     private final ClaimManager manager;
 
+    // All reasons why a player would intentionally spawn an entity in a claim
     public ClaimListeners(EternalClaims plugin) {
         this.manager = plugin.getManager(ClaimManager.class);
     }
@@ -46,7 +48,7 @@ public class ClaimListeners implements Listener {
     public void onChunkLoad(ChunkLoadEvent event) {
         Claim claim = this.manager.getClaim(event.getChunk());
 
-        if (claim != null) {
+        if (claim != null && !this.manager.getCachedClaims().containsKey(claim.getId())) {
             this.manager.getCachedClaims().put(claim.getId(), claim);
         }
     }
@@ -57,7 +59,9 @@ public class ClaimListeners implements Listener {
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGH)
     public void onPlace(BlockPlaceEvent event) {
         Claim claim = this.manager.getClaim(event.getBlock().getChunk());
-        if (claim != null && !claim.isTrusted(event.getPlayer())) {
+        if (claim == null) return;
+
+        if (!claim.isTrusted(event.getPlayer()) && !this.manager.isBypassing(event.getPlayer().getUniqueId())) {
             event.setCancelled(true);
         }
     }
@@ -68,7 +72,9 @@ public class ClaimListeners implements Listener {
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGH)
     public void onBreak(BlockBreakEvent event) {
         Claim claim = this.manager.getClaim(event.getBlock().getChunk());
-        if (claim != null && !claim.isTrusted(event.getPlayer())) {
+        if (claim == null) return;
+
+        if (!claim.isTrusted(event.getPlayer()) && !this.manager.isBypassing(event.getPlayer().getUniqueId())) {
             event.setCancelled(true);
         }
     }
@@ -79,9 +85,12 @@ public class ClaimListeners implements Listener {
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGH)
     public void onInteract(PlayerInteractEvent event) {
         if (event.getClickedBlock() == null) return;
+        if (event.getAction().isLeftClick()) return;
 
         Claim claim = this.manager.getClaim(event.getClickedBlock().getChunk());
-        if (claim != null && !claim.isTrusted(event.getPlayer())) {
+        if (claim == null) return;
+
+        if (!claim.isTrusted(event.getPlayer()) && !this.manager.isBypassing(event.getPlayer().getUniqueId())) {
             event.setCancelled(true);
         }
     }
@@ -92,7 +101,9 @@ public class ClaimListeners implements Listener {
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGH)
     public void onSignChange(SignChangeEvent event) {
         Claim claim = this.manager.getClaim(event.getBlock().getChunk());
-        if (claim != null && !claim.isTrusted(event.getPlayer())) {
+        if (claim == null) return;
+
+        if (!claim.isTrusted(event.getPlayer()) && !this.manager.isBypassing(event.getPlayer().getUniqueId())) {
             event.setCancelled(true);
         }
     }
@@ -101,16 +112,21 @@ public class ClaimListeners implements Listener {
      * Prevents mobs from spawning in a claim.
      */
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGH)
-    public void onSpawn(EntitySpawnEvent event) {
+    public void onSpawn(CreatureSpawnEvent event) {
+
+        // Ignore if the spawn reason is in the ignored list
+        if (Setting.CLAIMS_IGNORED_SPAWN_REASONS.getStringList().contains(event.getSpawnReason().name()))
+            return;
+
         Claim claim = this.manager.getClaim(event.getLocation().getChunk());
         if (claim == null) return;
 
-        if (claim.checkSetting(ClaimSetting.ANIMAL_SPAWNING) && event.getEntity() instanceof Animals) {
+        if (!claim.checkSetting(ClaimSetting.ANIMAL_SPAWNING) && event.getEntity() instanceof Animals) {
             event.setCancelled(true);
             return;
         }
 
-        if (claim.checkSetting(ClaimSetting.MONSTER_SPAWNING) && event.getEntity() instanceof Monster) {
+        if (!claim.checkSetting(ClaimSetting.MONSTER_SPAWNING) && event.getEntity() instanceof Monster) {
             event.setCancelled(true);
         }
 
@@ -191,7 +207,6 @@ public class ClaimListeners implements Listener {
     public void onPVP(EntityDamageByEntityEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
         if (!(event.getDamager() instanceof Player)) return;
-
 
         Claim claim = this.manager.getClaim(player.getLocation().getChunk());
         if (claim == null) return;
