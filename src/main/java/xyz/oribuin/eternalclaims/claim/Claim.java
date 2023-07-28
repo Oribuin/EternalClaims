@@ -129,8 +129,8 @@ public class Claim {
 
         PersistentDataContainer container = chunk.getPersistentDataContainer();
         container.set(ClaimDataKeys.CLAIM_OWNER, PersistentDataType.STRING, this.owner.toString());
-        container.set(ClaimDataKeys.SETTINGS, PersistentDataType.STRING, ClaimManager.GSON.toJson(this.settings));
-        container.set(ClaimDataKeys.TRUSTED, PersistentDataType.STRING, ClaimManager.GSON.toJson(this.trusted));
+        container.set(ClaimDataKeys.SETTINGS, PersistentDataType.STRING, ClaimManager.GSON.toJson(new ClaimSettingHolder(this.settings)));
+        container.set(ClaimDataKeys.TRUSTED, PersistentDataType.STRING, ClaimManager.GSON.toJson(new ClaimTrustedHolder(this.trusted)));
 
         // Save the chunk in the cache
         EternalClaims.getInstance()

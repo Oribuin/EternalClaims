@@ -158,7 +158,6 @@ public class ClaimListeners implements Listener {
         }
     }
 
-
     /**
      * Prevent entities from exploding in a claim.
      */
