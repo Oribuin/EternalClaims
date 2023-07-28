@@ -153,7 +153,7 @@ public class ClaimListeners implements Listener {
         Claim claim = this.manager.getClaim(event.getBlock().getChunk());
         if (claim == null) return;
 
-        if (claim.checkSetting(ClaimSetting.FIRE_SPREAD)) {
+        if (!claim.checkSetting(ClaimSetting.FIRE_SPREAD)) {
             event.setCancelled(true);
         }
     }
@@ -166,7 +166,7 @@ public class ClaimListeners implements Listener {
         Claim claim = this.manager.getClaim(event.getLocation().getChunk());
         if (claim == null) return;
 
-        if (claim.checkSetting(ClaimSetting.EXPLOSIONS)) {
+        if (!claim.checkSetting(ClaimSetting.EXPLOSIONS)) {
             event.setCancelled(true);
         }
     }
@@ -179,7 +179,7 @@ public class ClaimListeners implements Listener {
         Claim claim = this.manager.getClaim(event.getBlock().getChunk());
         if (claim == null) return;
 
-        if (claim.checkSetting(ClaimSetting.EXPLOSIONS)) {
+        if (!claim.checkSetting(ClaimSetting.EXPLOSIONS)) {
             event.setCancelled(true);
         }
     }
@@ -189,11 +189,11 @@ public class ClaimListeners implements Listener {
      */
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGH)
     public void onExplosionDamage(EntityDamageEvent event) {
-        Claim claim = this.manager.getClaim(event.getEntity().getLocation().getChunk());
-        if (claim == null) return;
-
         if (event.getCause() == EntityDamageEvent.DamageCause.BLOCK_EXPLOSION || event.getCause() == EntityDamageEvent.DamageCause.ENTITY_EXPLOSION) {
-            if (claim.checkSetting(ClaimSetting.EXPLOSIONS)) {
+            Claim claim = this.manager.getClaim(event.getEntity().getLocation().getChunk());
+            if (claim == null) return;
+
+            if (!claim.checkSetting(ClaimSetting.EXPLOSIONS)) {
                 event.setCancelled(true);
             }
         }
@@ -210,7 +210,7 @@ public class ClaimListeners implements Listener {
         Claim claim = this.manager.getClaim(player.getLocation().getChunk());
         if (claim == null) return;
 
-        if (claim.checkSetting(ClaimSetting.PVP)) {
+        if (!claim.checkSetting(ClaimSetting.PVP)) {
             event.setCancelled(true);
         }
     }
@@ -223,21 +223,25 @@ public class ClaimListeners implements Listener {
         Claim claim = this.manager.getClaim(event.getEntity().getLocation().getChunk());
         if (claim == null) return;
 
-        if (claim.checkSetting(ClaimSetting.MOB_GRIEFING)) {
+        if (!claim.checkSetting(ClaimSetting.MOB_GRIEFING)) {
             event.setCancelled(true);
         }
     }
 
+    /**
+     * Prevents players from interacting with entities in a claim.
+     */
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGH)
     public void onEntityInteract(PlayerInteractEntityEvent event) {
+
+        EntityType type = event.getRightClicked().getType();
+        if (type.isAlive() || type == EntityType.ARMOR_STAND || type == EntityType.PLAYER)
+            return;
+
         Claim claim = this.manager.getClaim(event.getRightClicked().getLocation().getChunk());
         if (claim == null) return;
 
-        if (claim.isTrusted(event.getPlayer())) return;
-
-        EntityType type = event.getRightClicked().getType();
-
-        if (!type.isAlive() || type == EntityType.ARMOR_STAND) {
+        if (!claim.isTrusted(event.getPlayer()) && !this.manager.isBypassing(event.getPlayer().getUniqueId())) {
             event.setCancelled(true);
         }
 
