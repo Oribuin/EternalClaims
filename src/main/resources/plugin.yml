@@ -1,11 +1,9 @@
 name: EternalClaims
-main: xyz.oribuin.eternalclaims.EternalClaims
-version: '@version@'
-api-version: 1.17
+main: dev.oribuin.eternalclaims.EternalClaims
+version: '${version}'
+api-version: 1.21
 author: Oribuin
 description: oh boy another claims plugin
 softdepend:
   - Vault
   - PlaceholderAPI
-  - WorldGuard
-  - PlayerPoints
